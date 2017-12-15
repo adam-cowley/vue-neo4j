@@ -1,3 +1,4 @@
+module.exports =
 /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -108,7 +109,9 @@ var _Connect2 = _interopRequireDefault(_Connect);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var neo4j = __webpack_require__(11).v1; /* eslint-disable new-cap, no-param-reassign, no-unreachable, no-multi-assign */
-exports.default = {
+
+
+var VueNeo4j = {
     install: function install(Vue) {
         var driver = void 0;
         var context = void 0;
@@ -293,6 +296,8 @@ exports.default = {
         };
     }
 };
+
+exports.default = VueNeo4j;
 
 /***/ }),
 /* 2 */

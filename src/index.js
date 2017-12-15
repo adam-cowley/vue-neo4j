@@ -3,7 +3,7 @@ import VueNeo4jConnect from './components/Connect.vue';
 
 const neo4j = require('neo4j-driver/lib/browser/neo4j-web.min.js').v1;
 
-export default {
+const VueNeo4j = {
     install: Vue => {
         let driver;
         let context;
@@ -182,3 +182,5 @@ export default {
         };
     },
 };
+
+export default VueNeo4j;
