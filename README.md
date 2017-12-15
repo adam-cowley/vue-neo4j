@@ -147,7 +147,7 @@ this.$neo4j.desktop.connectToActiveGraph()
 
 The Connect component will pull all projects and graphs from the Desktop context and allow. you to choose which project and graph to connect to.  The `onConnect` and `onConnectError` functions will be trigged on successful connection or when a connection error is thrown.  This will allow you to set the current state.  The `showActive` button allows you to show or hide the 'Active', which when clicked will search for an active graph and attempt to connect.
 
-The components are styled with Bootstrap variables.  You can target the elements within the form by using the `.vue-neo4j.connect` class which is applied to the parent.
+The form elements are styled with Bootstrap classes.  You can target the elements within the form by using the `.vue-neo4j.connect` class which is applied to the parent.
 
 ```html
 <template>
