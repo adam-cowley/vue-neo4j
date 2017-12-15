@@ -50,6 +50,10 @@ export default {
             type: Function,
             default: console.log, // eslint-disable-line no-console
         },
+        showActive: {
+            type: Boolean,
+            default: true,
+        },
     },
     mounted() {
         return this.$neo4j.desktop.getContext()

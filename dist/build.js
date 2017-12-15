@@ -897,6 +897,10 @@ exports.default = {
         onConnectError: {
             type: Function,
             default: console.log // eslint-disable-line no-console
+        },
+        showActive: {
+            type: Boolean,
+            default: true
         }
     },
     mounted: function mounted() {
