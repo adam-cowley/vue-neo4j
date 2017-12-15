@@ -1,0 +1,29 @@
+{
+  "name": "vue-neo4j",
+  "version": "0.1.0",
+  "description": "Neo4j connector for Vue",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adam-cowley/vue-neo4j.git"
+  },
+  "keywords": [
+    "neo4j",
+    "vue.js",
+    "graph",
+    "databases",
+    "cypher"
+  ],
+  "author": "Adam Cowley <npm@adamcowley.co.uk>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/adam-cowley/vue-neo4j/issues"
+  },
+  "homepage": "https://github.com/adam-cowley/vue-neo4j#readme",
+  "dependencies": {
+    "neo4j-driver": "^1.5.1"
+  }
+}
