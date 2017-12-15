@@ -2,7 +2,7 @@
   "name": "vue-neo4j",
   "version": "0.1.0",
   "description": "Neo4j connector for Vue",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,6 +24,16 @@
   },
   "homepage": "https://github.com/adam-cowley/vue-neo4j#readme",
   "dependencies": {
-    "neo4j-driver": "^1.5.1"
+    "neo4j-driver": "^1.5.1",
+    "vue": "^2.5.11"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-es2015": "^6.24.1",
+    "css-loader": "^0.28.7",
+    "vue-loader": "^13.5.0",
+    "vue-template-compiler": "^2.5.11",
+    "webpack": "^3.10.0"
   }
 }

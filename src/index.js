@@ -1,5 +1,6 @@
 /* eslint-disable new-cap, no-param-reassign, no-unreachable, no-multi-assign */
-// import neo4j from 'neo4j-driver';
+import VueNeo4jConnect from './components/Connect.vue';
+
 const neo4j = require('neo4j-driver/lib/browser/neo4j-web.min.js').v1;
 
 export default {
@@ -7,6 +8,8 @@ export default {
         let driver;
         let context;
         let graph;
+
+        Vue.component(VueNeo4jConnect.name, VueNeo4jConnect);
 
         /**
          * Get the current Neo4h Desktop Context

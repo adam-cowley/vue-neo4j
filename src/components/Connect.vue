@@ -40,7 +40,7 @@
 
 <script>
 export default {
-    name: 'Connect',
+    name: 'VueNeo4jConnect',
     props: {
         onConnect: {
             type: Function,
