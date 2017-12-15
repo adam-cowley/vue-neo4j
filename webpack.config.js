@@ -2,7 +2,7 @@ module.exports = {
     entry: './src/index.js',
     output: {
         path: __dirname + '/dist',
-        filename: 'build.js'
+        filename: 'index.js'
     },
     module: {
         loaders: [
