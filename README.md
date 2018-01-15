@@ -93,7 +93,7 @@ Returns the last connected driver instance.  This method will throw an error if 
 
 Returns the new session from the driver.  This method will throw an error if no connection has been made.
 
-### `this.$neo4j.query(cypher, params)`
+### `this.$neo4j.run(cypher, params)`
 
 Creates a new session in the current driver, runs the query, closes the session and returns the Neo4j result object in one go.
 
@@ -111,7 +111,7 @@ Creates a new session in the current driver, runs the query, closes the session 
             const query = 'MATCH (u:User { username: {username} }) RETURN u LIMIT 1'
             const params = { username: this.username };
 
-            this.$neo4j.cypher(query, params)
+            this.$neo4j.run(query, params)
                 .then(res => {
                     const user = res.records[0].get('u');
                     this.user = user;

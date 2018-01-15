@@ -202,9 +202,15 @@ var VueNeo4j = {
             return new Promise(function (resolve, reject) {
                 try {
                     var connectionString = protocol + '://' + host + ':' + port;
-                    var auth = username && password ? neo4j.auth.basic(username, password) : null;
+                    var auth = username && password ? neo4j.auth.basic(username, password) : false;
 
-                    driver = new neo4j.driver(connectionString, auth, { encrypted: encrypted });
+                    if (username && password && encrypted) {
+                        driver = new neo4j.driver(connectionString, auth, { encrypted: encrypted });
+                    } else if (username && password) {
+                        driver = new neo4j.driver(connectionString, auth);
+                    } else {
+                        driver = new neo4j.driver(connectionString);
+                    }
 
                     resolve(driver);
                 } catch (e) {
@@ -268,7 +274,7 @@ var VueNeo4j = {
          * @return {Promise}
          * @resolves                   Neo4j Result Set
          */
-        function query(cypher, params) {
+        function run(query, params) {
             var session = getSession();
 
             return session.run(query, params).then(function (results) {
@@ -285,7 +291,7 @@ var VueNeo4j = {
             connect: connect,
             getDriver: getDriver,
             getSession: getSession,
-            query: query,
+            run: run,
             desktop: {
                 connectToActiveGraph: connectToActiveGraph,
                 executeJava: executeJava,
