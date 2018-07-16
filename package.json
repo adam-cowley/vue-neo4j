@@ -28,12 +28,12 @@
     "vue": "^2.5.11"
   },
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.2",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
     "babel-preset-es2015": "^6.24.1",
-    "css-loader": "^0.28.7",
-    "vue-loader": "^13.5.0",
-    "vue-template-compiler": "^2.5.11",
-    "webpack": "^3.10.0"
+    "css-loader": "^0.28.11",
+    "vue-loader": "^13.7.2",
+    "vue-template-compiler": "^2.5.16",
+    "webpack": "^3.12.0"
   }
 }
