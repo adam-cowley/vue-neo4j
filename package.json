@@ -1,6 +1,6 @@
 {
   "name": "vue-neo4j",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Neo4j connector for Vue",
   "main": "dist/index.js",
   "scripts": {
