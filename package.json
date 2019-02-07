@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/adam-cowley/vue-neo4j#readme",
   "dependencies": {
-    "neo4j-driver": "^1.6.2",
+    "neo4j-driver": "^1.7.2",
     "vue": "^2.5.11"
   },
   "devDependencies": {
