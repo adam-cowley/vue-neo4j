@@ -1,7 +1,17 @@
 /* eslint-disable new-cap, no-param-reassign, no-unreachable, no-multi-assign */
-import VueNeo4jConnect from './components/Connect.vue';
+import ApolloClient from "apollo-client";
+import { InMemoryCache } from 'apollo-cache-inmemory';
+import { split } from 'apollo-link';
+import { setContext } from 'apollo-link-context';
+import { createHttpLink } from 'apollo-link-http';
+import { WebSocketLink } from 'apollo-link-ws';
+import {getMainDefinition} from 'apollo-utilities';
+import { v1 as neo4j } from 'neo4j-driver';
 
-const neo4j = require('neo4j-driver/lib/browser/neo4j-web.min.js').v1;
+import getWorkspaceQuery from './getWorkplaceQuery';
+import onWorkspaceChangeSubscription from './workspaceChangeSubscription';
+
+import VueNeo4jConnect from './components/Connect.vue';
 
 const VueNeo4j = {
     install: Vue => {
@@ -9,7 +19,196 @@ const VueNeo4j = {
         let context;
         let graph;
 
+        let client;
+        let observable;
+
+        init();
+
+        /**
+         * Connect to the Neo4j
+         */
+        function init() {
+            // Get GraphQL endpoint info from the URL
+            const url = new URL(window.location.href);
+            const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
+            const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
+
+            // Create HTTP Link
+            const httpLink = createHttpLink({
+                uri: `http://${apiEndpoint}/`,
+            });
+        
+            // Create WS Link
+            const wsLink = new WebSocketLink({
+                uri: `ws://${apiEndpoint}/`,
+                options: {
+                    reconnect: true,
+                    connectionParams: {
+                        ClientId: apiClientId
+                    }
+                }
+            });
+
+            // Auth Link
+            const authLink = setContext((_, {headers}) => {
+                return {
+                    headers: {
+                        ...headers,
+                        ClientId: apiClientId
+                    }
+                }
+            });
+
+            // Split the links
+            const link = split(
+                // split based on operation type
+                ({query}) => {
+                    const {kind, operation} = getMainDefinition(query);
+                    return kind === 'OperationDefinition' && operation === 'subscription';
+                },
+                wsLink,
+                authLink.concat(httpLink),
+            );
+
+            // Create Apollo Client
+            client = new ApolloClient({
+                link,
+                cache: new InMemoryCache()
+            });
+
+            // Get Workspace Information
+            client.query({
+                query: getWorkspaceQuery
+            }).then(_setNeo4jContext);
+        
+            // Subscribe to Workspace Changes
+            observable = client.subscribe({
+                query: onWorkspaceChangeSubscription
+            });
+            observable.subscribe(_setNeo4jContext);
+        }
+
+        /** 
+         * Set the current context
+         */
+        function _setNeo4jContext({ data: { workspace } }) {
+            const { me, host, projects } = workspace;
+
+            context = {
+                me, 
+                host, 
+                projects
+            }
+        }
+
+        /**
+         * Register Component
+         */
         Vue.component(VueNeo4jConnect.name, VueNeo4jConnect);
+
+        /**
+         * Create a new driver connection
+         *
+         * @param  {String}  protocol  Connection protocol.  Supports bolt or bolt+routing
+         * @param  {String}  host      Hostname of Neo4j instance
+         * @param  {Number}  port      Neo4j Port Number (7876)
+         * @param  {String}  username  Neo4j Username
+         * @param  {String}  password  Neo4j Password
+         * @param  {Boolean} encrypted Force an encrypted connection?
+         * @return {Promise}
+         * @resolves                   Neo4j driver instance
+         */
+        function connect(protocol, host, port, username, password, encrypted = true) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const connectionString = `${protocol}://${host}:${port}`;
+                    const auth = username && password ? neo4j.auth.basic(username, password) : false;
+
+                    if ( username && password && encrypted ) {
+                        driver = new neo4j.driver(connectionString, auth, {encrypted});
+                    }
+                    else if ( username && password ) {
+                        driver = new neo4j.driver(connectionString, auth);
+                    }
+                    else {
+                        driver = new neo4j.driver(connectionString);
+                    }
+
+                    resolve(driver);
+                }
+                catch (e) {
+                    reject(e);
+                }
+            });
+        }
+
+        /**
+         * Get the last instantiated driver instance
+         *
+         * @return {driver}
+         */
+        function getDriver() {
+            if (!driver) {
+                throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can get the current driver instance');
+            }
+            return driver;
+        }
+
+        /**
+         * Create a new driver session
+         *
+         * @return {driver}
+         */
+        function getSession() {
+            if (!driver) {
+                throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
+            }
+
+            return driver.session();
+        }
+
+        /**
+         * Run a query on the current driver
+         *
+         * @param  {String} cypher Cypher Query
+         * @param  {Object} params Object of parameters
+         * @return {Promise}
+         * @resolves                   Neo4j Result Set
+         */
+        function run(query, params) {
+            const session = getSession();
+
+            return session.run(query, params)
+                .then(results => {
+                    session.close();
+
+                    return results;
+                }, err => {
+                    session.close();
+                    throw err;
+                });
+        }
+
+
+        // Desktop Functions
+
+        /**
+         * Get the bolt credentials for the current active graph
+         * and try to connect.
+         *
+         * @return {Promise}
+         * @resolves            Neo4j driver instance
+         */
+        function connectToActiveGraph() {
+            return getActiveBoltCredentials()
+                .then(({ host, port, username, password, tlsLevel }) => {
+                    const protocol = 'bolt';
+                    const encrypted = tlsLevel !== 'OPTIONAL';
+
+                    return connect(protocol, host, port, username, password, encrypted);
+                });
+        }
+
 
         /**
          * Get the current Neo4h Desktop Context
@@ -18,6 +217,7 @@ const VueNeo4j = {
          * @resolves Context map of projects, graphs and connections
          */
         function getContext() {
+            // TODO: Deprecated - will be removed at some undefined point in the future
             if (!window.neo4jDesktopApi) {
                 return Promise.reject(new Error('`this.$neo4j.desktop` functions can only be used within Neo4j Desktop'));
             }
@@ -72,108 +272,35 @@ const VueNeo4j = {
          * @return {Promise}
          */
         function executeJava(params) {
-            return window.neo4jDesktopApi.executeJava(params);
-        }
-
-        /**
-         * Create a new driver connection
-         *
-         * @param  {String}  protocol  Connection protocol.  Supports bolt or bolt+routing
-         * @param  {String}  host      Hostname of Neo4j instance
-         * @param  {Number}  port      Neo4j Port Number (7876)
-         * @param  {String}  username  Neo4j Username
-         * @param  {String}  password  Neo4j Password
-         * @param  {Boolean} encrypted Force an encrypted connection?
-         * @return {Promise}
-         * @resolves                   Neo4j driver instance
-         */
-        function connect(protocol, host, port, username, password, encrypted = true) {
-            return new Promise((resolve, reject) => {
-                try {
-                    const connectionString = `${protocol}://${host}:${port}`;
-                    const auth = username && password ? neo4j.auth.basic(username, password) : false;
-
-                    if ( username && password && encrypted ) {
-                        driver = new neo4j.driver(connectionString, auth, {encrypted});
+            return window.neo4jDesktopApi.requestPermission('backgroundProcess')
+                .then(granted => {
+                    if (granted) {
+                        return window.neo4jDesktopApi.executeJava(params)
+                    } else {
+                        return Promise.reject('Execute permission denied.');
                     }
-                    else if ( username && password ) {
-                        driver = new neo4j.driver(connectionString, auth);
-                    }
-                    else {
-                        driver = new neo4j.driver(connectionString);
-                    }
-
-                    resolve(driver);
-                }
-                catch (e) {
-                    reject(e);
-                }
-            });
-        }
-
-        /**
-         * Get the bolt credentials for the current active graph
-         * and try to connect.
-         *
-         * @return {Promise}
-         * @resolves            Neo4j driver instance
-         */
-        function connectToActiveGraph() {
-            return getActiveBoltCredentials()
-                .then(({ host, port, username, password, tlsLevel }) => {
-                    const protocol = 'bolt';
-                    const encrypted = tlsLevel !== 'OPTIONAL';
-
-                    return connect(protocol, host, port, username, password, encrypted);
                 });
         }
 
         /**
-         * Get the last instantiated driver instance
-         *
-         * @return {driver}
+         * Get the current user
+         * 
+         * @return Object
          */
-        function getDriver() {
-            if (!driver) {
-                throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can get the current driver instance');
-            }
-            return driver;
+        function getUser() {
+            return context.me;
         }
 
         /**
-         * Create a new driver session
-         *
-         * @return {driver}
+         * Get the Current Projects
+         * 
+         * @return Object
          */
-        function getSession() {
-            if (!driver) {
-                throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
-            }
-
-            return driver.session();
+        function getProjects() {
+            return context.projects;
         }
 
-        /**
-         * Run a query on the current driver
-         *
-         * @param  {String} cypher Cypher Query
-         * @param  {Object} params Object of parameters
-         * @return {Promise}
-         * @resolves                   Neo4j Result Set
-         */
-        function run(query, params) {
-            const session = getSession();
 
-            return session.run(query, params)
-                .then(results => {
-                    session.close();
-
-                    return results;
-                }, err => {
-                    session.close();
-                    throw err;
-                });
-        }
 
         Vue.$neo4j = Vue.prototype.$neo4j = {
             connect,
@@ -186,6 +313,9 @@ const VueNeo4j = {
                 getActiveBoltCredentials,
                 getActiveGraph,
                 getContext,
+
+                getUser,
+                getProjects,
             },
         };
     },
