@@ -6,12 +6,12 @@ module.exports = {
         libraryTarget: 'commonjs2'
     },
     module: {
-        loaders: [
-            {
-                test: /\.js$/,
-                loader: 'babel-loader',
-                exclude: /node_modules/
-            },
+        rules: [
+            // {
+            //     test: /\.js$/,
+            //     loader: 'babel-loader',
+            //     exclude: /node_modules/
+            // },
             {
                 test: /\.vue$/,
                 loader: 'vue-loader'

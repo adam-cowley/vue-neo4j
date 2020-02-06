@@ -1,27 +1,27 @@
 <template>
-    <div class="vue-neo4j connect">
+    <div class="vue-neo4j connect ui form">
         <div class="loading" v-if="loading"></div>
         <div class="container">
             <div class="card">
-                <div class="form-group">
+                <div class="form-group field">
                     <label>Project</label>
                     <select class="form-control" v-model="currentProject">
-                        <option v-for="p in projects" v-bind:value="p">{{ p.name }} ({{ p.id }})</option>
+                        <option v-for="p in projects" :key="p.id" :value="p">{{ p.name }} ({{ p.id }})</option>
                     </select>
                 </div>
 
-                <div class="form-group" v-if="currentProject">
+                <div class="form-group field" v-if="currentProject">
                     <label>Graph</label>
                     <select class="form-control" v-model="currentGraph">
-                        <option  v-for="g in currentProject.graphs" v-bind:value="g">
+                        <option  v-for="g in currentProject.graphs" :key="g.name" :value="g">
                             {{ g.name }} ({{ g.connection.configuration.protocols.bolt.username ? g.connection.configuration.protocols.bolt.username + '@' : '' }}{{ g.connection.configuration.protocols.bolt.host }}:{{ g.connection.configuration.protocols.bolt.port }})
                         </option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <button class="btn btn-primary btn-connect" v-on:click="connect()" v-if="currentProject && currentGraph" >Connect</button>
-                    <button class="btn btn-success btn-connect-active" v-on:click="connectActive()">Active</button>
+                    <button class="ui button submit btn btn-primary btn-connect" v-on:click="connect()" v-if="currentProject && currentGraph" >Connect</button>
+                    <button class="ui button primary btn btn-success btn-connect-active" v-on:click="connectActive()">Active</button>
                 </div>
             </div>
         </div>

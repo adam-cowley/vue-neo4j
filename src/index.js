@@ -6,7 +6,7 @@ import { setContext } from 'apollo-link-context';
 import { createHttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
 import {getMainDefinition} from 'apollo-utilities';
-import { v1 as neo4j } from 'neo4j-driver';
+import neo4j from 'neo4j-driver';
 
 import getWorkspaceQuery from './getWorkplaceQuery';
 import onWorkspaceChangeSubscription from './workspaceChangeSubscription';
@@ -156,27 +156,29 @@ const VueNeo4j = {
 
         /**
          * Create a new driver session
+         * @param  {Object} params   Object of parameters
          *
          * @return {driver}
          */
-        function getSession() {
+        function getSession(options) {
             if (!driver) {
                 throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
             }
 
-            return driver.session();
+            return driver.session(options);
         }
 
         /**
          * Run a query on the current driver
          *
-         * @param  {String} cypher Cypher Query
-         * @param  {Object} params Object of parameters
+         * @param  {String} cypher   Cypher Query
+         * @param  {Object} params   Object of parameters
+         * @param  {Object} options  Session options
          * @return {Promise}
-         * @resolves                   Neo4j Result Set
+         * @resolves                 Neo4j Result Set
          */
-        function run(query, params) {
-            const session = getSession();
+        function run(query, params, options = {}) {
+            const session = getSession(options);
 
             return session.run(query, params)
                 .then(results => {
@@ -263,7 +265,14 @@ const VueNeo4j = {
          */
         function getActiveBoltCredentials() {
             return getActiveGraph()
-                .then(current => current.connection.configuration.protocols.bolt);
+                .then(current => {
+                    if ( current.connection.principals ) {
+                        return current.connection.principals.protocols.bolt
+                    }
+
+                    // Old API?
+                    return current.connection.configuration.protocols.bolt
+                });
         }
 
         /**
