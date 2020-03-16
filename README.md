@@ -108,7 +108,7 @@ Creates a new session in the current driver, runs the query, closes the session 
     },
     methods: {
         getUser() {
-            const query = 'MATCH (u:User { username: {username} }) RETURN u LIMIT 1'
+            const query = 'MATCH (u:User { username: $username }) RETURN u LIMIT 1'
             const params = { username: this.username };
 
             this.$neo4j.run(query, params)

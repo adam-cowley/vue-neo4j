@@ -5,7 +5,7 @@ import { split } from 'apollo-link';
 import { setContext } from 'apollo-link-context';
 import { createHttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
-import {getMainDefinition} from 'apollo-utilities';
+import { getMainDefinition } from 'apollo-utilities';
 import neo4j from 'neo4j-driver';
 
 import getWorkspaceQuery from './getWorkplaceQuery';
@@ -18,6 +18,7 @@ const VueNeo4j = {
         let driver;
         let context;
         let graph;
+        let sessionOptions = {};
 
         let client;
         let observable;
@@ -30,74 +31,85 @@ const VueNeo4j = {
         function init() {
             // Get GraphQL endpoint info from the URL
             const url = new URL(window.location.href);
-            const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
-            const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
 
-            // Create HTTP Link
-            const httpLink = createHttpLink({
-                uri: `http://${apiEndpoint}/`,
-            });
-        
-            // Create WS Link
-            const wsLink = new WebSocketLink({
-                uri: `ws://${apiEndpoint}/`,
-                options: {
-                    reconnect: true,
-                    connectionParams: {
-                        ClientId: apiClientId
+            // Prefer the injected API
+            if ( window.neo4jDesktopApi )  {
+                window.neo4jDesktopApi.getContext()
+                    .then(workplace => _setNeo4jContext({ data: { workplace } }));
+            }
+            else if ( url.searchParams.has('neo4jDesktopApiUrl') ) {
+                const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
+                const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
+
+                // Create HTTP Link
+                const httpLink = createHttpLink({
+                    uri: `http://${apiEndpoint}/`,
+                });
+
+                // Create WS Link
+                const wsLink = new WebSocketLink({
+                    uri: `ws://${apiEndpoint}/`,
+                    options: {
+                        reconnect: true,
+                        connectionParams: {
+                            ClientId: apiClientId
+                        }
                     }
-                }
-            });
+                });
 
-            // Auth Link
-            const authLink = setContext((_, {headers}) => {
-                return {
-                    headers: {
-                        ...headers,
-                        ClientId: apiClientId
+                // Auth Link
+                const authLink = setContext((_, {headers}) => {
+                    return {
+                        headers: {
+                            ...headers,
+                            ClientId: apiClientId
+                        }
                     }
-                }
-            });
+                });
 
-            // Split the links
-            const link = split(
-                // split based on operation type
-                ({query}) => {
-                    const {kind, operation} = getMainDefinition(query);
-                    return kind === 'OperationDefinition' && operation === 'subscription';
-                },
-                wsLink,
-                authLink.concat(httpLink),
-            );
+                // Split the links
+                const link = split(
+                    // split based on operation type
+                    ({query}) => {
+                        const {kind, operation} = getMainDefinition(query);
+                        return kind === 'OperationDefinition' && operation === 'subscription';
+                    },
+                    wsLink,
+                    authLink.concat(httpLink),
+                );
 
-            // Create Apollo Client
-            client = new ApolloClient({
-                link,
-                cache: new InMemoryCache()
-            });
+                // Create Apollo Client
+                client = new ApolloClient({
+                    link,
+                    cache: new InMemoryCache()
+                });
 
-            // Get Workspace Information
-            client.query({
-                query: getWorkspaceQuery
-            }).then(_setNeo4jContext);
-        
-            // Subscribe to Workspace Changes
-            observable = client.subscribe({
-                query: onWorkspaceChangeSubscription
-            });
-            observable.subscribe(_setNeo4jContext);
+                // Get Workspace Information
+                client.query({
+                    query: getWorkspaceQuery
+                }).then(data => _setNeo4jContext(data));
+
+                // Subscribe to Workspace Changes
+                observable = client.subscribe({
+                    query: onWorkspaceChangeSubscription
+                });
+                observable.subscribe(_setNeo4jContext);
+            }
         }
 
-        /** 
+        /**
          * Set the current context
          */
-        function _setNeo4jContext({ data: { workspace } }) {
-            const { me, host, projects } = workspace;
+        function _setNeo4jContext({ data }) {
+            console.log('data', data)
+            const { workplace, } = data;
+            const { me, host, projects, } = workplace;
+            // const { me, host, projects } = workspace;
 
             context = {
-                me, 
-                host, 
-                projects
+                me,
+                host,
+                projects,
             }
         }
 
@@ -114,15 +126,21 @@ const VueNeo4j = {
          * @param  {Number}  port      Neo4j Port Number (7876)
          * @param  {String}  username  Neo4j Username
          * @param  {String}  password  Neo4j Password
+         * @param  {String}  database  Neo4j Database (4.0+)
          * @param  {Boolean} encrypted Force an encrypted connection?
          * @return {Promise}
          * @resolves                   Neo4j driver instance
          */
-        function connect(protocol, host, port, username, password, encrypted = true) {
+        function connect(protocol, host, port, username, password, database = undefined, encrypted = true) {
             return new Promise((resolve, reject) => {
                 try {
                     const connectionString = `${protocol}://${host}:${port}`;
                     const auth = username && password ? neo4j.auth.basic(username, password) : false;
+                    database = database;
+
+                    if ( database ) {
+                        sessionOptions.database = database
+                    }
 
                     if ( username && password && encrypted ) {
                         driver = new neo4j.driver(connectionString, auth, {encrypted});
@@ -160,7 +178,7 @@ const VueNeo4j = {
          *
          * @return {driver}
          */
-        function getSession(options) {
+        function getSession(options = sessionOptions) {
             if (!driver) {
                 throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
             }
@@ -177,7 +195,7 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves                 Neo4j Result Set
          */
-        function run(query, params, options = {}) {
+        function run(query, params, options = sessionOptions) {
             const session = getSession(options);
 
             return session.run(query, params)
@@ -270,7 +288,7 @@ const VueNeo4j = {
                         return current.connection.principals.protocols.bolt
                     }
 
-                    // Old API?
+                    // Injected API?
                     return current.connection.configuration.protocols.bolt
                 });
         }
@@ -293,7 +311,7 @@ const VueNeo4j = {
 
         /**
          * Get the current user
-         * 
+         *
          * @return Object
          */
         function getUser() {
@@ -302,13 +320,26 @@ const VueNeo4j = {
 
         /**
          * Get the Current Projects
-         * 
+         *
          * @return Object
          */
         function getProjects() {
             return context.projects;
         }
 
+        /**
+         * Get activation keys
+         *
+         * @return string[]
+         */
+        function getActivationKeys() {
+            if ( !context ) return []
+            // GraphQL API
+            else if ( context.me ) return context.me.activationKeys || []
+
+            // neo4jDesktopApi
+            return context.activationKeys || [];
+        }
 
 
         Vue.$neo4j = Vue.prototype.$neo4j = {
@@ -325,6 +356,7 @@ const VueNeo4j = {
 
                 getUser,
                 getProjects,
+                getActivationKeys,
             },
         };
     },
