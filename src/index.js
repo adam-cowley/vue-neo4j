@@ -101,10 +101,8 @@ const VueNeo4j = {
          * Set the current context
          */
         function _setNeo4jContext({ data }) {
-            console.log('data', data)
             const { workplace, } = data;
             const { me, host, projects, } = workplace;
-            // const { me, host, projects } = workspace;
 
             context = {
                 me,
