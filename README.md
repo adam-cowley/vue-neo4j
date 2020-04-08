@@ -187,6 +187,7 @@ export default {
 | onConnectError | `Function` | Callback function for when there is a problem connecting with the supplied credentials | `e => console.error(e)`
 | showActive | `Boolean` | Show a button to connect to the current active graph? |  `true`
 | showProjects | `Boolean` | Show the list of projects rather than a form with host, port, username etc. | `true`
+| showDatabase | `Boolean` | Show an input for the default database to instantiate the driver with | `true`
 | protocol | `String` | The default protocol to display in the connect form | `'neo4j'`
 | host | `String` | The default host to display in the connect form | `'localhost'`
 | port: | ` [Number, String]` | The default port to display in the connect form | `7687`

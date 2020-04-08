@@ -65,8 +65,8 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="field">
-                            <label for="database">Database (version 4.0 and above)</label>
+                        <div class="field" v-if="showDatabase">
+                            <label for="database">Database</label>
                             <div class="ui left icon input">
                                 <i class="database icon"></i>
                                 <input type="text" id="database" name="database" placeholder="Default (dbms.default_database)" v-model="idatabase">
@@ -145,6 +145,11 @@ export default {
          * Show a button to connect to the current active graph?
          */
         showActive: {
+            type: Boolean,
+            default: true,
+        },
+
+        showDatabase: {
             type: Boolean,
             default: true,
         },
