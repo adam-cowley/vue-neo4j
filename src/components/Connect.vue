@@ -10,7 +10,6 @@
 
                     <div class="ui negative message" v-if="error" v-html="error" />
 
-
                     <template v-if="showProjectForm">
                         <div class="form-group field">
                             <label>Project</label>
@@ -276,9 +275,9 @@ export default {
         },
 
         connectToOtherGraph() {
-            const { protocol, host, port, username, password, database } = this
+            const { iprotocol, ihost, iport, iusername, ipassword, idatabase } = this
 
-            this.$neo4j.connect(protocol, host, port, username, password, database !== '' ? database : undefined)
+            this.$neo4j.connect(iprotocol, ihost, iport, iusername, ipassword, idatabase !== '' ? idatabase : undefined)
                 .then(driver => driver.verifyConnectivity().then(() => driver))
                 .then(driver => this.onConnect(driver))
                 .catch(error => {
