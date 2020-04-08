@@ -4,7 +4,8 @@
   "description": "Neo4j connector for Vue",
   "main": "dist/index.js",
   "scripts": {
-    "build": "./node_modules/.bin/webpack"
+    "build": "./node_modules/.bin/webpack",
+    "dev": "./node_modules/.bin/webpack --watch"
   },
   "repository": {
     "type": "git",
@@ -46,5 +47,11 @@
     "vue-template-compiler": "^2.6.11",
     "webpack": "^4.41.5",
     "webpack-cli": "^3.3.10"
+  },
+  "peerDependencies": {
+    "vue": "^2.6.x",
+    "vue-loader": "^14.2.0",
+    "vue-template-compiler": "^2.6.11",
+    "neo4j-driver": "4.x"
   }
 }

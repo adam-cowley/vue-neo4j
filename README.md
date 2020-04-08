@@ -179,5 +179,20 @@ export default {
 </style>
 ```
 
+#### Component Props
+
+| Prop | Type | Description | Default |
+| --- | --- | --- | --- |
+|  onConnect | `Function` | Callback function for when a driver connection has been made | `() => {}`
+| onConnectError | `Function` | Callback function for when there is a problem connecting with the supplied credentials | `e => console.error(e)`
+| showActive | `Boolean` | Show a button to connect to the current active graph? |  `true`
+| showProjects | `Boolean` | Show the list of projects rather than a form with host, port, username etc. | `true`
+| protocol | `String` | The default protocol to display in the connect form | `'neo4j'`
+| host | `String` | The default host to display in the connect form | `'localhost'`
+| port: | ` [Number, String]` | The default port to display in the connect form | `7687`
+| database | ` String` | The default database to display in the connect form | `''`
+| username | ` String` | The default username to display in the connect form |`'neo4j'`
+| password | ` String` | The default password to display in the connect form | `''`
+
 
 
