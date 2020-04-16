@@ -259,9 +259,8 @@ export default {
             } = this.currentGraph.connection.configuration.protocols.bolt;
 
             const protocol = 'bolt';
-            const encrypted = tlsLevel !== 'OPTIONAL';
 
-            this.$neo4j.connect(protocol, host, port, username, password, encrypted)
+            this.$neo4j.connect(protocol, host, port, username, password)
                 .then(driver => driver.verifyConnectivity().then(() => driver))
                 .then(driver => this.onConnect(driver))
                 .catch(error => {

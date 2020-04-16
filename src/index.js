@@ -18,6 +18,7 @@ const VueNeo4j = {
         let driver;
         let context;
         let graph;
+        let database;
         let sessionOptions = {};
 
         let client;
@@ -124,26 +125,22 @@ const VueNeo4j = {
          * @param  {Number}  port      Neo4j Port Number (7876)
          * @param  {String}  username  Neo4j Username
          * @param  {String}  password  Neo4j Password
-         * @param  {String}  database  Neo4j Database (4.0+)
-         * @param  {Boolean} encrypted Force an encrypted connection?
+         * @param  {String}  _database  Neo4j Database (4.0+)
          * @return {Promise}
          * @resolves                   Neo4j driver instance
          */
-        function connect(protocol, host, port, username, password, database = undefined, encrypted = true) {
+        function connect(protocol, host, port, username, password, _database = undefined) {
             return new Promise((resolve, reject) => {
                 try {
                     const connectionString = `${protocol}://${host}:${port}`;
                     const auth = username && password ? neo4j.auth.basic(username, password) : false;
-                    database = database;
+                    database = _database;
 
                     if ( database ) {
                         sessionOptions.database = database
                     }
 
-                    if ( username && password && encrypted ) {
-                        driver = new neo4j.driver(connectionString, auth, {encrypted});
-                    }
-                    else if ( username && password ) {
+                    if ( username && password ) {
                         driver = new neo4j.driver(connectionString, auth);
                     }
                     else {
@@ -184,6 +181,10 @@ const VueNeo4j = {
             return driver.session(options);
         }
 
+        function getDatabase() {
+            return database;
+        }
+
         /**
          * Run a query on the current driver
          *
@@ -221,9 +222,8 @@ const VueNeo4j = {
             return getActiveBoltCredentials()
                 .then(({ host, port, username, password, tlsLevel }) => {
                     const protocol = 'bolt';
-                    const encrypted = tlsLevel !== 'OPTIONAL';
 
-                    return connect(protocol, host, port, username, password, encrypted);
+                    return connect(protocol, host, port, username, password);
                 });
         }
 
@@ -344,6 +344,7 @@ const VueNeo4j = {
             connect,
             getDriver,
             getSession,
+            getDatabase,
             run,
             desktop: {
                 connectToActiveGraph,
