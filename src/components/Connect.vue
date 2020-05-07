@@ -130,7 +130,7 @@
 
 <script>
 export default {
-    name: 'vue-neo4j-connect',
+    name: 'neo4j-connect',
     props: {
         onConnect: {
             type: Function,

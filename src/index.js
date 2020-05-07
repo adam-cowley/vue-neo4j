@@ -11,7 +11,8 @@ import neo4j from 'neo4j-driver';
 import getWorkspaceQuery from './getWorkplaceQuery';
 import onWorkspaceChangeSubscription from './workspaceChangeSubscription';
 
-import VueNeo4jConnect from './components/Connect.vue';
+import Neo4jConnect from './components/Connect.vue';
+import Neo4jDatabaseInformation from './components/DatabaseInformation.vue';
 
 const VueNeo4j = {
     install: Vue => {
@@ -19,7 +20,6 @@ const VueNeo4j = {
         let context;
         let graph;
         let database;
-        let sessionOptions = {};
 
         let client;
         let observable;
@@ -115,7 +115,8 @@ const VueNeo4j = {
         /**
          * Register Component
          */
-        Vue.component(VueNeo4jConnect.name, VueNeo4jConnect);
+        Vue.component(Neo4jConnect.name, Neo4jConnect);
+        Vue.component(Neo4jDatabaseInformation.name, Neo4jDatabaseInformation);
 
         /**
          * Create a new driver connection
@@ -135,10 +136,6 @@ const VueNeo4j = {
                     const connectionString = `${protocol}://${host}:${port}`;
                     const auth = username && password ? neo4j.auth.basic(username, password) : false;
                     database = _database;
-
-                    if ( database ) {
-                        sessionOptions.database = database
-                    }
 
                     if ( username && password ) {
                         driver = new neo4j.driver(connectionString, auth);
@@ -173,16 +170,22 @@ const VueNeo4j = {
          *
          * @return {driver}
          */
-        function getSession(options = sessionOptions) {
+        function getSession(options = {}) {
             if (!driver) {
                 throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
             }
+
+            if ( !options.database ) options.database = database
 
             return driver.session(options);
         }
 
         function getDatabase() {
             return database;
+        }
+
+        function setDatabase(db) {
+            database = db
         }
 
         /**
@@ -194,7 +197,7 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves                 Neo4j Result Set
          */
-        function run(query, params, options = sessionOptions) {
+        function run(query, params, options = {}) {
             const session = getSession(options);
 
             return session.run(query, params)
@@ -345,6 +348,7 @@ const VueNeo4j = {
             getDriver,
             getSession,
             getDatabase,
+            setDatabase,
             run,
             desktop: {
                 connectToActiveGraph,
