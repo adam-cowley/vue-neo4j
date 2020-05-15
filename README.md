@@ -50,7 +50,10 @@ export default {
     },
     methods: {
         connect() {
-           return this.$neo4j.connect(this.protocol, this.host, this.port, this.username, this.password)
+            return this.$neo4j.connect(this.protocol, this.host, this.port, this.username, this.password)
+                .then(driver => {
+                    // Update the context of your app
+                })
         },
         driver() {
             // Get a driver instance
@@ -60,6 +63,7 @@ export default {
             // Get a session from the driver
             const session = this.$neo4j.getSession()
 
+            // Or you can just call this.$neo4j.run(cypher, params)
             session.run('MATCH (n) RETURN count(n) AS count')
                 .then(res => {
                     console.log(res.records[0].get('count'))
@@ -140,7 +144,7 @@ This plugin contains some handy functions for integrating with Neo4j Desktop.  T
 - getActiveBoltCredentials
 - getActiveGraph
 - getContext
-
+- getGraphQLClient
 
 ### `this.$neo4j.desktop.connectToActiveGraph()`
 

@@ -1,8 +1,8 @@
 <template>
-    <div class="neo4j-database ui inverted menu" @click="toggleSwitch">
-        <div class="ui vertical inverted menu floated right">
+    <div class="neo4j-database" @click="toggleSwitch">
+        <div class="ui vertical menu">
             <div class="item">
-                <div class="header">
+                <div class="header current-database">
                     {{host}}:{{port}}
                 </div>
                 <div class="menu">
@@ -11,13 +11,13 @@
 
                         <i class="spinner icon" v-if="loading"></i>
                         <i :class="closeIcon" class="icon" v-else-if="switchVisible"></i>
-                        <i :class="openIcon" class="icon" v-else></i>
+                        <i :class="openIcon" class="icon" v-else-if="cleanedDatabases.length > 1"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="ui inverted vertical pointing menu" v-if="switchVisible">
+        <div class="ui vertical pointing menu databases" v-if="switchVisible">
             <a
                 class="item"
                 v-for="database in cleanedDatabases"
@@ -74,9 +74,12 @@ export default {
 
         },
         toggleSwitch() {
+            if ( this.cleanedDatabases.length < 2 ) return
+
             this.switchVisible = !this.switchVisible
         },
         switchTo(database) {
+
             this.$neo4j.setDatabase(database.name)
             this.database = this.$neo4j.getDatabase()
 
@@ -104,12 +107,17 @@ export default {
 </script>
 
 <style>
-.neo4j-database .pointing.menu {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    background: rgba(0,0,0,.8);
+.neo4j-database {
+    position: relative;
+}
+.neo4j-database .current-database {
+    border-bottom: 0px none !important;
+}
+
+.neo4j-database .databases {
     position: absolute;
-    bottom: 100%;
+    left: 0;
+    top: 0;
     right: 0;
 }
 </style>

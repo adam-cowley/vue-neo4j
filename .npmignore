@@ -2,3 +2,4 @@ src/
 node_modules/
 .babelrc
 .webpack.config.js
+*.tgz
