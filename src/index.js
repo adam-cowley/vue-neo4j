@@ -6,6 +6,8 @@ import { setContext } from 'apollo-link-context';
 import { createHttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
+import gql from 'graphql-tag'
+
 import neo4j from 'neo4j-driver';
 
 import getWorkspaceQuery from './getWorkplaceQuery';
@@ -28,9 +30,6 @@ const VueNeo4j = {
          * Connect to the Neo4j
          */
         const init = () => {
-            // Get GraphQL endpoint info from the URL
-            const url = new URL(window.location.href);
-
             // Prefer the injected API
             if ( window.neo4jDesktopApi )  {
                 window.neo4jDesktopApi.getContext()
@@ -44,10 +43,22 @@ const VueNeo4j = {
                     query: onWorkspaceChangeSubscription
                 });
                 observable.subscribe(_setNeo4jContext);
+
+                // Get Workspace Information
+                client.query({
+                    query: getWorkspaceQuery
+                }).then(data => _setNeo4jContext(data));
             }
         }
 
         const getGraphQLClient = () => {
+            // Get GraphQL endpoint info from the URL
+            const url = new URL(window.location.href);
+
+            if ( !url.searchParams.has('neo4jDesktopApiUrl') || !url.searchParams.has('neo4jDesktopGraphAppClientId') ) {
+                throw new Error("Couldn't find neo4jDesktopApiUrl or neo4jDesktopGraphAppClientId in the URL search params.  Are you running this app in Neo4j Desktop?")
+            }
+
             const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
             const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
 
@@ -94,12 +105,36 @@ const VueNeo4j = {
                 cache: new InMemoryCache()
             });
 
-            // Get Workspace Information
-            client.query({
-                query: getWorkspaceQuery
-            }).then(data => _setNeo4jContext(data));
-
             return client
+        }
+
+        /**
+         * Send metrics to the GraphQL API
+         *
+         * @param {String} category
+         * @param {String} label
+         * @param {MetricsProperty[]} properties
+         * @param {String} userId
+         */
+        const sendMetrics = (category, label, properties, userId) => {
+            const client = getGraphQLClient()
+
+            const mutation = gql`
+                mutation SendMetrics($event: MetricsEvent!) {
+                    sendMetrics(event: $event)
+                }
+            `
+            return client.mutate({
+                mutation,
+                variables: {
+                    event: {
+                        category,
+                        label,
+                        properties: properties || [],
+                        userId,
+                    },
+                },
+            })
         }
 
         /**
@@ -365,9 +400,10 @@ const VueNeo4j = {
                 getProjects,
                 getActivationKeys,
                 getGraphQLClient,
+
+                sendMetrics,
             },
         };
-
 
         init()
     },
