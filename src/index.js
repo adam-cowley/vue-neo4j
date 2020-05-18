@@ -30,6 +30,8 @@ const VueNeo4j = {
          * Connect to the Neo4j
          */
         const init = () => {
+            const url = new URL(window.location.href);
+
             // Prefer the injected API
             if ( window.neo4jDesktopApi )  {
                 window.neo4jDesktopApi.getContext()
