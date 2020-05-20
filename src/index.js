@@ -38,76 +38,79 @@ const VueNeo4j = {
                     .then(workplace => _setNeo4jContext({ data: { workplace } }));
             }
             else if ( url.searchParams.has('neo4jDesktopApiUrl') ) {
-                const client = getGraphQLClient()
+                getGraphQLClient()
+                    .then(client => {
+                        // Subscribe to Workspace Changes
+                        observable = client.subscribe({
+                            query: onWorkspaceChangeSubscription
+                        });
+                        observable.subscribe(_setNeo4jContext);
 
-                // Subscribe to Workspace Changes
-                observable = client.subscribe({
-                    query: onWorkspaceChangeSubscription
-                });
-                observable.subscribe(_setNeo4jContext);
-
-                // Get Workspace Information
-                client.query({
-                    query: getWorkspaceQuery
-                }).then(data => _setNeo4jContext(data));
+                        // Get Workspace Information
+                        client.query({
+                            query: getWorkspaceQuery
+                        }).then(data => _setNeo4jContext(data));
+                    })
             }
         }
 
         const getGraphQLClient = () => {
-            // Get GraphQL endpoint info from the URL
-            const url = new URL(window.location.href);
+            return new Promise((resolve, reject) => {
+                // Get GraphQL endpoint info from the URL
+                const url = new URL(window.location.href);
 
-            if ( !url.searchParams.has('neo4jDesktopApiUrl') || !url.searchParams.has('neo4jDesktopGraphAppClientId') ) {
-                throw new Error("Couldn't find neo4jDesktopApiUrl or neo4jDesktopGraphAppClientId in the URL search params.  Are you running this app in Neo4j Desktop?")
-            }
-
-            const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
-            const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
-
-            // Create HTTP Link
-            const httpLink = createHttpLink({
-                uri: `http://${apiEndpoint}/`,
-            });
-
-            // Create WS Link
-            const wsLink = new WebSocketLink({
-                uri: `ws://${apiEndpoint}/`,
-                options: {
-                    reconnect: true,
-                    connectionParams: {
-                        ClientId: apiClientId
-                    }
+                if ( !url.searchParams.has('neo4jDesktopApiUrl') || !url.searchParams.has('neo4jDesktopGraphAppClientId') ) {
+                    return reject(new Error("Couldn't find neo4jDesktopApiUrl or neo4jDesktopGraphAppClientId in the URL search params.  Are you running this app in Neo4j Desktop?"))
                 }
-            });
 
-            // Auth Link
-            const authLink = setContext((_, {headers}) => {
-                return {
-                    headers: {
-                        ...headers,
-                        ClientId: apiClientId
+                const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
+                const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
+
+                // Create HTTP Link
+                const httpLink = createHttpLink({
+                    uri: `http://${apiEndpoint}/`,
+                });
+
+                // Create WS Link
+                const wsLink = new WebSocketLink({
+                    uri: `ws://${apiEndpoint}/`,
+                    options: {
+                        reconnect: true,
+                        connectionParams: {
+                            ClientId: apiClientId
+                        }
                     }
-                }
-            });
+                });
 
-            // Split the links
-            const link = split(
-                // split based on operation type
-                ({query}) => {
-                    const {kind, operation} = getMainDefinition(query);
-                    return kind === 'OperationDefinition' && operation === 'subscription';
-                },
-                wsLink,
-                authLink.concat(httpLink),
-            );
+                // Auth Link
+                const authLink = setContext((_, {headers}) => {
+                    return {
+                        headers: {
+                            ...headers,
+                            ClientId: apiClientId
+                        }
+                    }
+                });
 
-            // Create Apollo Client
-            client = new ApolloClient({
-                link,
-                cache: new InMemoryCache()
-            });
+                // Split the links
+                const link = split(
+                    // split based on operation type
+                    ({query}) => {
+                        const {kind, operation} = getMainDefinition(query);
+                        return kind === 'OperationDefinition' && operation === 'subscription';
+                    },
+                    wsLink,
+                    authLink.concat(httpLink),
+                );
 
-            return client
+                // Create Apollo Client
+                client = new ApolloClient({
+                    link,
+                    cache: new InMemoryCache()
+                });
+
+                resolve(client)
+            })
         }
 
         /**
@@ -119,24 +122,33 @@ const VueNeo4j = {
          * @param {String} userId
          */
         const sendMetrics = (category, label, properties, userId) => {
-            const client = getGraphQLClient()
-
-            const mutation = gql`
-                mutation SendMetrics($event: MetricsEvent!) {
-                    sendMetrics(event: $event)
-                }
-            `
-            return client.mutate({
-                mutation,
-                variables: {
-                    event: {
-                        category,
-                        label,
-                        properties: properties || [],
-                        userId,
-                    },
-                },
-            })
+            // Prefer the injected API
+            if ( window.neo4jDesktopApi )  {
+                return window.neo4jDesktopApi.sendMetrics(`${category}-${label}`, properties)
+            }
+            else {
+                return getGraphQLClient()
+                    .then(client => {
+                        const mutation = gql`
+                            mutation SendMetrics($event: MetricsEvent!) {
+                                sendMetrics(event: $event)
+                            }
+                        `
+                        return client.mutate({
+                            mutation,
+                            variables: {
+                                event: {
+                                    category,
+                                    label,
+                                    properties: properties || [],
+                                    userId,
+                                },
+                            },
+                        })
+                    })
+                    // Silent failure if we're not in Neo4j Desktop
+                    .catch(e => {})
+            }
         }
 
         /**
