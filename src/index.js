@@ -124,12 +124,9 @@ const VueNeo4j = {
         const sendMetrics = (category, label, properties, userId) => {
             // Prefer the injected API
             if ( window.neo4jDesktopApi )  {
-                console.log('injected');
-
                 return window.neo4jDesktopApi.sendMetrics(category, label, properties)
             }
             else {
-                console.log('gql');
                 return getGraphQLClient()
                     .then(client => {
                         const mutation = gql`
