@@ -124,9 +124,12 @@ const VueNeo4j = {
         const sendMetrics = (category, label, properties, userId) => {
             // Prefer the injected API
             if ( window.neo4jDesktopApi )  {
-                return window.neo4jDesktopApi.sendMetrics(`${category}-${label}`, properties)
+                console.log('injected');
+
+                return window.neo4jDesktopApi.sendMetrics(category, label, properties)
             }
             else {
+                console.log('gql');
                 return getGraphQLClient()
                     .then(client => {
                         const mutation = gql`
@@ -147,7 +150,7 @@ const VueNeo4j = {
                         })
                     })
                     // Silent failure if we're not in Neo4j Desktop
-                    .catch(e => {})
+                    .catch(() => {})
             }
         }
 
@@ -322,7 +325,7 @@ const VueNeo4j = {
                 })
                 .then(res => {
                     if (!res.length) {
-                        throw new Error('There is no active graph.  Click the `Activate` button on a Database in Neoj Desktop and try again.');
+                        throw new Error('There is no active graph.  Click the `Start` button on a Database in Neoj Desktop and try again.');
                     }
 
                     graph = res[0];
