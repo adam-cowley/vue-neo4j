@@ -183,7 +183,7 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves                   Neo4j driver instance
          */
-        const connect = (protocol, host, port, username, password, _database = undefined)  => {
+        const connect = (protocol, host, port, username, password, _database = undefined, encrypted = false)  => {
             return new Promise((resolve, reject) => {
                 try {
                     const connectionString = `${protocol}://${host}:${port}`;
@@ -191,7 +191,7 @@ const VueNeo4j = {
                     database = _database;
 
                     if ( username && password ) {
-                        driver = new neo4j.driver(connectionString, auth);
+                        driver = new neo4j.driver(connectionString, auth, { encrypted });
                     }
                     else {
                         driver = new neo4j.driver(connectionString);
