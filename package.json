@@ -49,9 +49,9 @@
     "webpack-cli": "^3.3.10"
   },
   "peerDependencies": {
+    "neo4j-driver": "^4.0.2",
     "vue": "^2.6.x",
     "vue-loader": "^14.2.0",
-    "vue-template-compiler": "^2.6.11",
-    "neo4j-driver": "^4.0.2"
+    "vue-template-compiler": "^2.6.11"
   }
 }

@@ -85,10 +85,9 @@ const VueNeo4j = {
                 // Auth Link
                 const authLink = setContext((_, {headers}) => {
                     return {
-                        headers: {
-                            ...headers,
+                        headers: Object.assign({}, headers, {
                             ClientId: apiClientId
-                        }
+                        })
                     }
                 });
 
