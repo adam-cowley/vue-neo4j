@@ -275,8 +275,8 @@ const VueNeo4j = {
          */
         const connectToActiveGraph = () => {
             return getActiveBoltCredentials()
-                .then(({ host, port, username, password, tlsLevel }) => {
-                    const protocol = 'bolt';
+                .then(({ host, port, username, password, url }) => {
+                    const protocol = url.split('://')[0] || 'neo4j';
 
                     return connect(protocol, host, port, username, password);
                 });
