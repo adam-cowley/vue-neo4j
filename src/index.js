@@ -6,12 +6,15 @@ import { setContext } from 'apollo-link-context';
 import { createHttpLink } from 'apollo-link-http';
 import { WebSocketLink } from 'apollo-link-ws';
 import { getMainDefinition } from 'apollo-utilities';
+import gql from 'graphql-tag'
+
 import neo4j from 'neo4j-driver';
 
 import getWorkspaceQuery from './getWorkplaceQuery';
 import onWorkspaceChangeSubscription from './workspaceChangeSubscription';
 
-import VueNeo4jConnect from './components/Connect.vue';
+import Neo4jConnect from './components/Connect.vue';
+import Neo4jDatabaseInformation from './components/DatabaseInformation.vue';
 
 const VueNeo4j = {
     install: Vue => {
@@ -19,18 +22,14 @@ const VueNeo4j = {
         let context;
         let graph;
         let database;
-        let sessionOptions = {};
 
         let client;
         let observable;
 
-        init();
-
         /**
          * Connect to the Neo4j
          */
-        function init() {
-            // Get GraphQL endpoint info from the URL
+        const init = () => {
             const url = new URL(window.location.href);
 
             // Prefer the injected API
@@ -39,6 +38,31 @@ const VueNeo4j = {
                     .then(workplace => _setNeo4jContext({ data: { workplace } }));
             }
             else if ( url.searchParams.has('neo4jDesktopApiUrl') ) {
+                getGraphQLClient()
+                    .then(client => {
+                        // Subscribe to Workspace Changes
+                        observable = client.subscribe({
+                            query: onWorkspaceChangeSubscription
+                        });
+                        observable.subscribe(_setNeo4jContext);
+
+                        // Get Workspace Information
+                        client.query({
+                            query: getWorkspaceQuery
+                        }).then(data => _setNeo4jContext(data));
+                    })
+            }
+        }
+
+        const getGraphQLClient = () => {
+            return new Promise((resolve, reject) => {
+                // Get GraphQL endpoint info from the URL
+                const url = new URL(window.location.href);
+
+                if ( !url.searchParams.has('neo4jDesktopApiUrl') || !url.searchParams.has('neo4jDesktopGraphAppClientId') ) {
+                    return reject(new Error("Couldn't find neo4jDesktopApiUrl or neo4jDesktopGraphAppClientId in the URL search params.  Are you running this app in Neo4j Desktop?"))
+                }
+
                 const apiEndpoint = url.searchParams.get('neo4jDesktopApiUrl').split("//")[1];
                 const apiClientId = url.searchParams.get('neo4jDesktopGraphAppClientId');
 
@@ -61,10 +85,9 @@ const VueNeo4j = {
                 // Auth Link
                 const authLink = setContext((_, {headers}) => {
                     return {
-                        headers: {
-                            ...headers,
+                        headers: Object.assign({}, headers, {
                             ClientId: apiClientId
-                        }
+                        })
                     }
                 });
 
@@ -85,23 +108,52 @@ const VueNeo4j = {
                     cache: new InMemoryCache()
                 });
 
-                // Get Workspace Information
-                client.query({
-                    query: getWorkspaceQuery
-                }).then(data => _setNeo4jContext(data));
+                resolve(client)
+            })
+        }
 
-                // Subscribe to Workspace Changes
-                observable = client.subscribe({
-                    query: onWorkspaceChangeSubscription
-                });
-                observable.subscribe(_setNeo4jContext);
+        /**
+         * Send metrics to the GraphQL API
+         *
+         * @param {String} category
+         * @param {String} label
+         * @param {MetricsProperty[]} properties
+         * @param {String} userId
+         */
+        const sendMetrics = (category, label, properties, userId) => {
+            // Prefer the injected API
+            if ( window.neo4jDesktopApi )  {
+                return window.neo4jDesktopApi.sendMetrics(category, label, properties)
+            }
+            else {
+                return getGraphQLClient()
+                    .then(client => {
+                        const mutation = gql`
+                            mutation SendMetrics($event: MetricsEvent!) {
+                                sendMetrics(event: $event)
+                            }
+                        `
+                        return client.mutate({
+                            mutation,
+                            variables: {
+                                event: {
+                                    category,
+                                    label,
+                                    properties: properties || [],
+                                    userId,
+                                },
+                            },
+                        })
+                    })
+                    // Silent failure if we're not in Neo4j Desktop
+                    .catch(() => {})
             }
         }
 
         /**
          * Set the current context
          */
-        function _setNeo4jContext({ data }) {
+        const _setNeo4jContext = ({ data }) => {
             const { workplace, } = data;
             const { me, host, projects, } = workplace;
 
@@ -115,7 +167,8 @@ const VueNeo4j = {
         /**
          * Register Component
          */
-        Vue.component(VueNeo4jConnect.name, VueNeo4jConnect);
+        Vue.component(Neo4jConnect.name, Neo4jConnect);
+        Vue.component(Neo4jDatabaseInformation.name, Neo4jDatabaseInformation);
 
         /**
          * Create a new driver connection
@@ -129,16 +182,12 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves                   Neo4j driver instance
          */
-        function connect(protocol, host, port, username, password, _database = undefined) {
+        const connect = (protocol, host, port, username, password, _database = undefined)  => {
             return new Promise((resolve, reject) => {
                 try {
                     const connectionString = `${protocol}://${host}:${port}`;
                     const auth = username && password ? neo4j.auth.basic(username, password) : false;
                     database = _database;
-
-                    if ( database ) {
-                        sessionOptions.database = database
-                    }
 
                     if ( username && password ) {
                         driver = new neo4j.driver(connectionString, auth);
@@ -160,7 +209,7 @@ const VueNeo4j = {
          *
          * @return {driver}
          */
-        function getDriver() {
+        const getDriver = () => {
             if (!driver) {
                 throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can get the current driver instance');
             }
@@ -173,16 +222,22 @@ const VueNeo4j = {
          *
          * @return {driver}
          */
-        function getSession(options = sessionOptions) {
+        const getSession = (options = {}) => {
             if (!driver) {
                 throw new Error('A connection has not been made to Neo4j. You will need to run `this.$neo4j.connect(protocol, host, port, username, password)` before you can create a new session');
             }
 
+            if ( !options.database ) options.database = database
+
             return driver.session(options);
         }
 
-        function getDatabase() {
+        const getDatabase = () => {
             return database;
+        }
+
+        const setDatabase = (db) => {
+            database = db
         }
 
         /**
@@ -194,7 +249,7 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves                 Neo4j Result Set
          */
-        function run(query, params, options = sessionOptions) {
+        const run = (query, params, options = {}) => {
             const session = getSession(options);
 
             return session.run(query, params)
@@ -218,10 +273,10 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves            Neo4j driver instance
          */
-        function connectToActiveGraph() {
+        const connectToActiveGraph = () => {
             return getActiveBoltCredentials()
-                .then(({ host, port, username, password, tlsLevel }) => {
-                    const protocol = 'bolt';
+                .then(({ host, port, username, password, url }) => {
+                    const protocol = url.split('://')[0] || 'neo4j';
 
                     return connect(protocol, host, port, username, password);
                 });
@@ -234,7 +289,7 @@ const VueNeo4j = {
          * @return {Promise}
          * @resolves Context map of projects, graphs and connections
          */
-        function getContext() {
+        const getContext = () => {
             // TODO: Deprecated - will be removed at some undefined point in the future
             if (!window.neo4jDesktopApi) {
                 return Promise.reject(new Error('`this.$neo4j.desktop` functions can only be used within Neo4j Desktop'));
@@ -254,7 +309,7 @@ const VueNeo4j = {
          *
          * @return {Object}   Project object containing `id:String`, `description:String`
          */
-        function getActiveGraph() {
+        const getActiveGraph = () => {
             return getContext()
                 .then(neo4jContext => {
                     const graphs = neo4jContext.projects.reduce((state, project) => {
@@ -266,7 +321,7 @@ const VueNeo4j = {
                 })
                 .then(res => {
                     if (!res.length) {
-                        throw new Error('There is no active graph.  Click the `Activate` button on a Database in Neoj Desktop and try again.');
+                        throw new Error('There is no active graph.  Click the `Start` button on a Database in Neoj Desktop and try again.');
                     }
 
                     graph = res[0];
@@ -279,7 +334,7 @@ const VueNeo4j = {
          * Get the bolt credentials current ACTIVE graph
          * @return {Object} Object containing host, port, username, password, enabled, tlsLevel.
          */
-        function getActiveBoltCredentials() {
+        const getActiveBoltCredentials = () => {
             return getActiveGraph()
                 .then(current => {
                     if ( current.connection.principals ) {
@@ -296,7 +351,7 @@ const VueNeo4j = {
          * @param  {Object} params
          * @return {Promise}
          */
-        function executeJava(params) {
+        const executeJava = (params) => {
             return window.neo4jDesktopApi.requestPermission('backgroundProcess')
                 .then(granted => {
                     if (granted) {
@@ -312,7 +367,7 @@ const VueNeo4j = {
          *
          * @return Object
          */
-        function getUser() {
+        const getUser = () => {
             return context.me;
         }
 
@@ -321,7 +376,7 @@ const VueNeo4j = {
          *
          * @return Object
          */
-        function getProjects() {
+        const getProjects = () => {
             return context.projects;
         }
 
@@ -330,7 +385,7 @@ const VueNeo4j = {
          *
          * @return string[]
          */
-        function getActivationKeys() {
+        const getActivationKeys = () => {
             if ( !context ) return []
             // GraphQL API
             else if ( context.me ) return context.me.activationKeys || []
@@ -345,6 +400,7 @@ const VueNeo4j = {
             getDriver,
             getSession,
             getDatabase,
+            setDatabase,
             run,
             desktop: {
                 connectToActiveGraph,
@@ -356,8 +412,13 @@ const VueNeo4j = {
                 getUser,
                 getProjects,
                 getActivationKeys,
+                getGraphQLClient,
+
+                sendMetrics,
             },
         };
+
+        init()
     },
 };
 
