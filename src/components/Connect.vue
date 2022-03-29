@@ -184,12 +184,22 @@ export default {
         },
     },
     mounted() {
-        this.iprotocol = this.protocol
-        this.ihost = this.host
-        this.iport = this.port
-        this.idatabase = this.database
-        this.iusername = this.username
-        this.ipassword = this.password
+        const params = new URLSearchParams(window.location.href)
+
+        let full, protocol_, urlProtocol, urlHost, port_, urlPort
+
+        if ( params.has('url') ) {
+            [ full, protocol_, urlProtocol, urlHost, port_, urlPort ] = url.match(/((neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc):\/\/)([a-z0-9\.]+)(:([0-9]+))/)
+
+        }
+
+
+        this.iprotocol = this.protocol || urlProtocol
+        this.ihost = this.host || urlHost
+        this.iport = this.port || urlPort
+        this.idatabase = this.database || params.get('database')
+        this.iusername = this.username || params.get('user')
+        this.ipassword = this.password || params.get('pass')
 
         // TODO: Handle GraphQL API
         this.showProjectForm = this.showProjects && window.neo4jDesktopApi
@@ -211,9 +221,12 @@ export default {
                     this.loading = false
                 })
         }
+        else if ( urlProtocol && urlHost && urlPort && this.iusername && this.ipassword ) {
+            this.connectToOtherGraph()
+        }
     },
     data: () => ({
-        protocols: ['neo4j', 'neo4j+s', 'neo4j+scc', 'bolt', 'bolt+routing'],
+        protocols: ['neo4j', 'neo4j+s', 'neo4j+ssc', 'bolt', 'bolt+s', 'bolt+ssc'],
         iprotocol: '',
         ihost: '',
         iport: 7687,
@@ -258,7 +271,7 @@ export default {
                 tlsLevel,
             } = this.currentGraph.connection.configuration.protocols.bolt;
 
-            const protocol = 'bolt';
+            const protocol = 'neo4j';
 
             this.$neo4j.connect(protocol, host, port, username, password)
                 .then(driver => driver.verifyConnectivity().then(() => driver))
