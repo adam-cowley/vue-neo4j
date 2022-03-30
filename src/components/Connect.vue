@@ -184,22 +184,29 @@ export default {
         },
     },
     mounted() {
-        const params = new URLSearchParams(window.location.href)
+        const params = new URLSearchParams(window.location.search)
 
-        let full, protocol_, urlProtocol, urlHost, port_, urlPort
+        let urlProtocol, urlHost, urlPort
 
         if ( params.has('url') ) {
-            [ full, protocol_, urlProtocol, urlHost, port_, urlPort ] = url.match(/((neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc):\/\/)([a-z0-9\.]+)(:([0-9]+))/)
+            const url = params.get('url')
 
+            const matches = url.match(/((neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc):\/\/)([a-z0-9\.]+)(:([0-9]+))/)
+
+            if (matches) {
+                urlProtocol = matches[2]
+                urlHost = matches[3]
+                urlPort = matches[5]
+
+            }
         }
 
-
-        this.iprotocol = this.protocol || urlProtocol
-        this.ihost = this.host || urlHost
-        this.iport = this.port || urlPort
-        this.idatabase = this.database || params.get('database')
-        this.iusername = this.username || params.get('user')
-        this.ipassword = this.password || params.get('pass')
+        this.iprotocol = urlProtocol || this.protocol
+        this.ihost = urlHost || this.host
+        this.iport = urlPort || this.port
+        this.idatabase = params.get('database') || this.database
+        this.iusername = params.get('user') || this.username
+        this.ipassword = params.get('pass') || this.password
 
         // TODO: Handle GraphQL API
         this.showProjectForm = this.showProjects && window.neo4jDesktopApi
