@@ -191,13 +191,12 @@ export default {
         if ( params.has('url') ) {
             const url = params.get('url')
 
-            const matches = url.match(/((neo4j|neo4j\+s|neo4j\+ssc|bolt|bolt\+s|bolt\+ssc):\/\/)([a-z0-9\.]+)(:([0-9]+))/)
+            const matches = url.match(/^((neo4j|bolt)((\+s?(sc)?)?):\/\/)?([\w.]+)(:([0-9]+))?$/)
 
             if (matches) {
-                urlProtocol = matches[2]
-                urlHost = matches[3]
-                urlPort = matches[5]
-
+                urlProtocol = matches[2] || 'neo4j'
+                urlHost = matches[6]
+                urlPort = matches[8] || 7687
             }
         }
 
